@@ -84,6 +84,71 @@ func (m M) DeepUpdateNoOverwrite(d M) {
 	m.deepUpdateMap(d, false)
 }
 
+// DeepCopyUpdate recursively merges the key-value pairs from d into this map,
+// creating fresh copies of all nested maps. Unlike DeepUpdate, this never
+// aliases d's sub-maps into m — the destination gets independent copies of
+// all nested map values. Scalar values (strings, ints, bools, etc.) are
+// shared safely since they are immutable in Go.
+//
+// This is equivalent to m.DeepUpdate(d.Clone()) but performs the clone and
+// merge in a single pass, avoiding the intermediate allocation of a full
+// clone.
+func (m M) DeepCopyUpdate(d M) {
+	for k, v := range d {
+		switch srcVal := v.(type) {
+		case M:
+			if dstMap, ok := m[k].(M); ok {
+				dstMap.DeepCopyUpdate(srcVal)
+			} else {
+				fresh := make(M, len(srcVal))
+				fresh.DeepCopyUpdate(srcVal)
+				m[k] = fresh
+			}
+		case map[string]interface{}:
+			if dstMap, ok := m[k].(M); ok {
+				dstMap.DeepCopyUpdate(M(srcVal))
+			} else {
+				fresh := make(M, len(srcVal))
+				fresh.DeepCopyUpdate(M(srcVal))
+				m[k] = fresh
+			}
+		default:
+			m[k] = v
+		}
+	}
+}
+
+// DeepCopyUpdateNoOverwrite is like DeepCopyUpdate but skips keys that
+// already exist in the destination. This is equivalent to
+// m.DeepUpdateNoOverwrite(d.Clone()) but performs the clone and merge
+// in a single pass.
+func (m M) DeepCopyUpdateNoOverwrite(d M) {
+	for k, v := range d {
+		switch srcVal := v.(type) {
+		case M:
+			if dstMap, ok := m[k].(M); ok {
+				dstMap.DeepCopyUpdateNoOverwrite(srcVal)
+			} else if _, exists := m[k]; !exists {
+				fresh := make(M, len(srcVal))
+				fresh.DeepCopyUpdate(srcVal)
+				m[k] = fresh
+			}
+		case map[string]interface{}:
+			if dstMap, ok := m[k].(M); ok {
+				dstMap.DeepCopyUpdateNoOverwrite(M(srcVal))
+			} else if _, exists := m[k]; !exists {
+				fresh := make(M, len(srcVal))
+				fresh.DeepCopyUpdate(M(srcVal))
+				m[k] = fresh
+			}
+		default:
+			if _, exists := m[k]; !exists {
+				m[k] = v
+			}
+		}
+	}
+}
+
 func (m M) deepUpdateMap(d M, overwrite bool) {
 	for k, v := range d {
 		switch val := v.(type) {

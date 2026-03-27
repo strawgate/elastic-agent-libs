@@ -31,7 +31,9 @@ import (
 
 const (
 	// GoImportsImportPath controls the import path used to install goimports.
-	GoImportsImportPath = "golang.org/x/tools/cmd/goimports@latest"
+	// Pinned to v0.42.0 because v0.43.0+ requires Go 1.25 and CI
+	// runners use GOTOOLCHAIN=local with Go 1.24.
+	GoImportsImportPath = "golang.org/x/tools/cmd/goimports@v0.42.0"
 
 	// GoImportsLocalPrefix is a string prefix matching imports that should be
 	// grouped after third-party packages.
