@@ -205,6 +205,47 @@ func TestDeepCopyUpdateNoOverwriteEquivalence(t *testing.T) {
 	assert.Equal(t, dst1, dst2)
 }
 
+func TestDeepCopyUpdateNoOverwriteMapReplacesScalar(t *testing.T) {
+	dst := M{
+		"host":    "26.101.84.62",
+		"message": "log line",
+	}
+	src := M{
+		"host":  M{"name": "my-beat"},
+		"agent": M{"name": "my-beat", "type": "filebeat"},
+	}
+
+	expected := M{
+		"host":    "26.101.84.62",
+		"message": "log line",
+	}
+	expected.DeepUpdateNoOverwrite(src.Clone())
+
+	dst.DeepCopyUpdateNoOverwrite(src)
+
+	assert.Equal(t, expected, dst, "DeepCopyUpdateNoOverwrite must match DeepUpdateNoOverwrite semantics when map replaces scalar")
+
+	hostVal, ok := dst["host"].(M)
+	require.True(t, ok, "host must be a map after map-over-scalar merge, got %T", dst["host"])
+	assert.Equal(t, "my-beat", hostVal["name"])
+}
+
+func TestDeepCopyUpdateNoOverwriteMapReplacesScalarNoAliasing(t *testing.T) {
+	src := M{
+		"host": M{"name": "my-beat"},
+	}
+	srcCopy := src.Clone()
+
+	dst := M{"host": "1.2.3.4"}
+	dst.DeepCopyUpdateNoOverwrite(src)
+
+	hostVal, ok := dst["host"].(M)
+	require.True(t, ok)
+	hostVal["name"] = "MUTATED"
+
+	assert.Equal(t, srcCopy, src, "source must not be affected by mutations to destination")
+}
+
 func TestDeepCopyUpdateNilSource(t *testing.T) {
 	dst := M{"key": "value"}
 	dst.DeepCopyUpdate(nil)
